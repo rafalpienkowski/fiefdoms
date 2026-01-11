@@ -1,0 +1,67 @@
+sequenceDiagram
+    participant Client
+    participant Server1 as Server-EU-1
+    participant Server2 as Server-US-1
+    participant Server3 as Server-AS-1
+
+    Note over Client,Server3: Game Start Flow (No Router)
+
+    Client->>Client: ConnectAndPlay()
+    Note over Client: Client has hardcoded<br/>list of servers
+
+    rect rgb(240, 240, 240)
+        Note over Client,Server3: Client iterates through servers
+
+        Client->>Server1: GetServerInfo()
+        activate Server1
+        Server1-->>Client: ServerInfo(address, currentLoad, maxLoad)
+        deactivate Server1
+
+        alt Server is full (currentLoad >= maxLoad)
+            Note over Client: Reject: Server is full<br/>Continue to next server
+        else Server too empty (currentLoad < 2)
+            Note over Client: Reject: Too few players<br/>Save as fallback option<br/>Continue to next server
+        else Server has good load
+            Note over Client: Accept: Suitable server!<br/>Stop searching
+        end
+
+        opt If rejected, check next server
+            Client->>Server2: GetServerInfo()
+            activate Server2
+            Server2-->>Client: ServerInfo(address, currentLoad, maxLoad)
+            deactivate Server2
+
+            Note over Client: Apply same<br/>rejection logic
+        end
+
+        opt If still rejected, check next server
+            Client->>Server3: GetServerInfo()
+            activate Server3
+            Server3-->>Client: ServerInfo(address, currentLoad, maxLoad)
+            deactivate Server3
+
+            Note over Client: Apply same<br/>rejection logic
+        end
+    end
+
+    alt No suitable server found
+        Note over Client: Connect to<br/>least-bad option<br/>(server closest to ideal load)
+    end
+
+    Client->>Server2: ConnectPlayer(player)
+    activate Server2
+
+    Note over Server2: Add player to<br/>waiting queue
+
+    Server2->>Server2: TryMatchPlayers()
+
+    alt Two players available
+        Note over Server2: Dequeue 2 players<br/>Create Game<br/>Start GameSession
+        Server2-->>Client: GameSession created
+        Note over Client: Game started!<br/>Opponent found
+    else Waiting for opponent
+        Server2-->>Client: null (waiting)
+        Note over Client: Player waiting<br/>for opponent
+    end
+
+    deactivate Server2
